@@ -1,0 +1,84 @@
+import csv
+import numpy as np
+
+
+
+from collections import defaultdict
+import matplotlib.pyplot as plt
+
+from sklearn.decomposition import FastICA, PCA
+
+
+emg_channel = defaultdict(list)
+with open('xyz.txt') as f:
+    reader = csv.reader(f)
+    #reader.next()
+    for row in reader:
+        for (i,v) in enumerate(row):
+            emg_channel[i].append(float(v))
+            
+   
+# #############################################################################
+# Generate sample data
+t=emg_channel[0]
+
+
+##s2 = np.sign(np.sin(3 * time))  # Signal 2 : square signal
+#s3 = signal.sawtooth(2 * np.pi * time)  # Signal 3: saw tooth signal
+s1=emg_channel[12]
+s2=emg_channel[2]
+s3=emg_channel[3]
+#s4=emg_channel[4]
+#s5=emg_channel[5]
+#s6=emg_channel[6]
+#s7=emg_channel[7]
+#s8=emg_channel[8]
+#s9=emg_channel[9]
+#s10=emg_channel[10]
+#s11=emg_channel[11]
+#s12=emg_channel[12]
+
+S = np.c_[s1, s2, s3]#,s4,s5,s6,s7,s8,s9,s10,s11,s12]
+S += 0.2 * np.random.normal(size=S.shape)  # Add noise
+
+S /= S.std(axis=0)  # Standardize data
+# Mix data
+A = np.array([[1, 1, 1], [0.5, 2, 1.0], [1.5, 1.0, 2.0]])#,[1,1,1],[1,1,1],[1,1,1],[1,1,1],[1,1,1],[1,1,1],[1,1,1],[1,1,1],[1,1,1]])  # Mixing matrix
+X = np.dot(S, A.T)  # Generate observations
+
+# Compute ICA
+ica = FastICA(n_components=3)
+S_ = ica.fit_transform(X)  # Reconstruct signals
+A_ = ica.mixing_  # Get estimated mixing matrix
+
+# We can `prove` that the ICA model applies by reverting the unmixing.
+assert np.allclose(X, np.dot(S_, A_.T) + ica.mean_)
+
+# For comparison, compute PCA
+pca = PCA(n_components=2)
+H = pca.fit_transform(X)  # Reconstruct signals based on orthogonal components
+
+# #############################################################################
+# Plot results
+
+plt.figure()
+
+models = [X, S, S_, H]
+names = ['Observations (mixed signal)',
+         'True Sources',
+         'ICA recovered signals',
+         'PCA recovered signals']
+colors = ['red', 'steelblue', 'orange']
+
+for ii, (model, name) in enumerate(zip(models, names), 1):
+    
+
+    plt.subplot(2, 2, ii)
+    plt.title(name)
+    plt.xlabel('samples')
+    plt.ylabel('voltage(microV)')
+    for sig, color in zip(model.T, colors):
+        plt.plot(sig, color=color)
+
+plt.tight_layout()
+plt.show()  
